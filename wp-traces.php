@@ -19,41 +19,37 @@ class AC_Wp_Traces {
 
 	public function wp_trace_action(){
 		/*
-		 * Even though this plugin should never EVER be used in production, this is
-		 * a safety net. You have to actually set the showTrace=1 flag in the query
-		 * string for it to operate. If you don't it will still slow down your
-		 * site, but it won't do anything.
+		 * Plugin should never EVER be used in production.
 		 */
-		if ( ! isset( $_GET['debug_trace'] ) || (bool) $_GET['debug_trace'] !== true ) {
+		$debug_trace = filter_input(INPUT_GET, 'debug_trace', FILTER_SANITIZE_NUMBER_INT );
+		if ( empty( $debug_trace ) ) {
 			return;
 		}
 
 		/*
 		 * There are 2 other flags you can set to control what is output
 		 */
-		$show_args = ( isset( $_GET['debug_args'] ) ? (bool) $_GET['debug_args'] : false );
-		$show_time = ( isset( $_GET['debug_time'] ) ? (bool) $_GET['debug_time'] : false );
-
+		$show_args = filter_input( INPUT_GET, 'debug_args', FILTER_SANITIZE_NUMBER_INT );
+		$show_time = filter_input( INPUT_GET, 'debug_time', FILTER_SANITIZE_NUMBER_INT );
 
 		/*
 		 * This is the main array we are using to hold the list of actions
 		 */
 		static $actions = [];
 
-
 		/*
 		 * Some actions are not going to be of interet to you. Add them into this
 		 * array to exclude them. Remove the two default if you want to see them.
 		 */
-		$excludeActions = [ 'gettext', 'gettext_with_context' ];
-		$thisAction     = current_filter();
-		$thisArguments  = func_get_args();
+		$exclude_actions   = [ 'gettext', 'gettext_with_context' ];
+		$current_action    = current_filter();
+		$current_arguments = func_get_args();
 
-		if ( ! in_array( $thisAction, $excludeActions ) ) {
+		if ( ! in_array( $current_action, $exclude_actions ) ) {
 			$actions[] = [
-				'action'    => $thisAction,
+				'action'    => $current_action,
 				'time'      => microtime( true ),
-				'arguments' => print_r( $thisArguments, true )
+				'arguments' => print_r( $current_arguments, true )
 			];
 		}
 
@@ -61,7 +57,7 @@ class AC_Wp_Traces {
 		/*
 		 * Shutdown is the last action, process the list.
 		 */
-		if ( $thisAction === 'shutdown' ) {
+		if ( $current_action === 'shutdown' ) {
 			$this->wp_trace_debug_output( $actions, $show_args, $show_time );
 		}
 
@@ -75,25 +71,25 @@ class AC_Wp_Traces {
 		  */
 		echo '<pre class="debug">';
 
-		foreach ( $actions as $thisAction ) {
+		foreach ( $actions as $current_action ) {
 			echo "Action Name : ";
 
 			/*
 			 * if you want the timings, let's make sure everything is padded out properly.
 			 */
 			if ( $show_time ) {
-				$timeParts = explode( '.', $thisAction['time'] );
-				echo '(' . $timeParts[0] . '.' . str_pad( $timeParts[1], 4, '0' ) . ') ';
+				$time_parts = explode( '.', $current_action['time'] );
+				echo '(' . $time_parts[0] . '.' . str_pad( $time_parts[1], 4, '0' ) . ') ';
 			}
 
 
-			echo $thisAction['action'] . PHP_EOL;
+			echo $current_action['action'] . PHP_EOL;
 
 			/*
 			 * If you've requested the arguments, let's display them.
 			 */
-			if ( $show_args && count( $thisAction['arguments'] ) > 0 ) {
-				echo "Args:" . PHP_EOL . print_r( $thisAction['arguments'], true );
+			if ( $show_args && count( $current_action['arguments'] ) > 0 ) {
+				echo "Args:" . PHP_EOL . print_r( $current_action['arguments'], true );
 				echo PHP_EOL;
 			}
 		}
