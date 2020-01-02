@@ -8,7 +8,6 @@ Author URI: https://github.com/arunchaitanyajami
 Plugin URI: https://github.com/arunchaitanyajami/wp-traces
 */
 
-
 class AC_Wp_Traces {
 
 	public function __construct() {
