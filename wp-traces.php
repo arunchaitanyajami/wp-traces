@@ -10,13 +10,20 @@ Plugin URI: https://github.com/arunchaitanyajami/wp-traces
 
 class AC_Wp_Traces {
 
+	public static $SiteWideAction;
+	public static $curretBlog;
+
 	public function __construct() {
 		/**
 		 * Hook it into WordPress.
 		 */
 		add_action( 'all', [ $this, 'wp_trace_action' ], 99999, 99 );
+		self::$curretBlog = get_current_blog_id();
 	}
 
+	/**
+	 * Wo track all actions.
+	 */
 	public function wp_trace_action(){
 		/*
 		 * Plugin should never EVER be used in production.
@@ -43,13 +50,16 @@ class AC_Wp_Traces {
 		 */
 		$exclude_actions   = [ 'gettext', 'gettext_with_context' ];
 		$current_action    = current_filter();
+		$current_blog      = get_current_blog_id();
 		$current_arguments = func_get_args();
 
 		if ( ! in_array( $current_action, $exclude_actions ) ) {
 			$actions[] = [
-				'action'    => $current_action,
-				'time'      => microtime( true ),
-				'arguments' => print_r( $current_arguments, true )
+				'current_blog' => $current_blog,
+				'action'       => $current_action,
+				'time'         => microtime( true ),
+				'current_time' => current_time( 'mysql' ),
+				'arguments'    => print_r( $current_arguments, true )
 			];
 		}
 
@@ -58,12 +68,22 @@ class AC_Wp_Traces {
 		 * Shutdown is the last action, process the list.
 		 */
 		if ( $current_action === 'shutdown' ) {
+			self::$SiteWideAction[ self::$curretBlog ] = $actions;
 			$this->wp_trace_debug_output( $actions, $show_args, $show_time );
+			$this->wp_trace_debug_option();
 		}
 
 		return;
 	}
 
+
+	/**
+	 * Trace output at the end of the file.
+	 *
+	 * @param array $actions
+	 * @param bool $show_args
+	 * @param bool $show_time
+	 */
 	public function wp_trace_debug_output( $actions = [], $show_args = false, $show_time = false ) {
 		/*
 		  * Let's do a little formatting here.
@@ -98,6 +118,19 @@ class AC_Wp_Traces {
 
 		return;
 	}
+
+	/**
+	 * Add site option to network site ( If multi-site ).
+	 */
+	public function wp_trace_debug_option() {
+		update_blog_option( 1, esc_attr( 'wp_trace_%s', self::$curretBlog, current_time( 'U' ) ), self::$SiteWideAction );
+	}
 }
 
-new AC_Wp_Traces();
+/**
+ * Plugin Activation Hook.
+ */
+function ac_wp_traces_activate_plugin() {
+	new AC_Wp_Traces();
+}
+register_activation_hook( __FILE__, 'ac_wp_traces_activate_plugin' );
